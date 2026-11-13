@@ -1,57 +1,56 @@
 ---
 name: "soxl-box-pyramid"
-description: "Isolated box-pyramid limit grid engine. N boxes, G spacing, S-step rungs, W weights, anchor high/low/fib, one reduce-only trim per round. SOXL 6-box preset included as example. Use for any grid, high tracking, or break-even trim."
+description: "SOXL 격리 7배 6박스 피라미딩. 고점 피보 0.66을 30분마다 추적해 미체결 지정가를 전부 다시 걸고, 박스 간격 7%·안쪽 0.5% 4단·수량 10/20/30/40%·박스당 동일 수량, 2·3·4박스 후 본전에서 50/35/15% 청산. 이 그리드를 걸거나 고점 추적·본전 청산·박스 비중을 다룰 때 사용."
 ---
 
-# Box pyramid (generic)
+# SOXL 6박스 피라미딩
 
-Prices are never hand-computed. Use `scripts/ladder.mjs` only.
+가격은 손으로 다시 만들지 말고 `scripts/ladder.mjs`로 낸다. 상태 파일은 `C:\Users\USER\.aside\u\0\memory\routines\soxl-fib-grid\STATE.md`.
 
-## Parameters
+## 고정 비중
 
-- `symbol`, `exchange` (e.g. SOXL, bingx)
-- `boxes N`: box count. Each box holds `total / N` coins
-- `gap G`: box-top spacing. `top[i+1] = top[i] * (1 - G)`
-- `steps S`: rung drops inside a box (e.g. 0, 0.5, 1, 1.5%)
-- `weights W`: rung sizes top to bottom (e.g. 1:2:3:4). Never fill the whole G band with S steps
-- `anchor`: `box1top = round(high - fib * (high - low), 2)`. `low` fixed, `high` ratchets up only
-- `boxQty`: coins per box. Splits Max Long while unfilled only
-- `leverage L`: isolated, never lowered to buy room
-- `state`: per-symbol state file (e.g. one file per market), not one global path
+이 숫자는 바꾸지 않는다. 고점이 올라 가격만 다시 계산한다.
 
-```sh
-node scripts/ladder.mjs --config configs/soxl.json --high <high>
-node scripts/ladder.mjs --symbol TQQQ --exchange bingx --high 85.2 --low 52.1 --fib 0.618 --boxes 5 --gap 0.07 --steps 0,0.5,1,1.5 --weights 1:2:3:4 --boxQty 30 --leverage 5
-```
+- 박스 6개. 박스끼리 코인 수량은 동일. 각 박스는 총수량의 1/6.
+- 박스 간격 7%. 다음 꼭대기 = 이전 꼭대기 × 0.93.
+- 박스 안 4단. 가격은 꼭대기에서 0%, −0.5%, −1.0%, −1.5%.
+- 박스 안 수량 비중은 위→아래 **10% / 20% / 30% / 40%** (1:2:3:4). 여섯 박스가 같다.
+- 전체 수량 대비 한 단은 1.667% / 3.333% / 5% / 6.667% 이고, 같은 단이 6박스에 반복된다.
+- 7% 구간을 0.5%로 다 채우지 않는다. 14단이 되고 다음 박스와 맞붙는다.
+- 1박스 꼭대기 = round(고점 − 0.66 × (고점 − 41.37), 2). 저점 41.37은 고정. 고점은 위로만 올린다. 0.786은 쓰지 않는다.
+- 격리 7배. 레버리지를 낮추지 않는다. 시드는 미체결만 있을 때 주문 한도(Max Long)까지 6박스가 나눈다.
 
-## Tracking (any market)
+시작 북(고점 56.52): 박스당 42.6753 SOXL, 단 수량 4.2675 / 8.5350 / 12.8025 / 17.0703. 꼭대기 47.16 / 43.86 / 40.79 / 37.93 / 35.27 / 32.80. 2026-11-14 00:01 북(고점 69.78, 0.66): 꼭대기 51.03 / 47.46 / 44.14 / 41.05 / 38.18 / 35.51.
 
-Read the 1-minute high and the page 24h high. If above the stored high, ratchet the anchor up. Judge prices from kline high/close only, never the tab title or mark.
+## 30분 고점 추적
 
-If the new box-1 top is at least 0.02 above the resting top, cancel all unfilled buys and rebuild with the same weights. Never move filled quantity. If equal or lower, touch nothing. Only place rungs at least 0.05 below the current price.
+30분마다 1분봉 고점과 페이지 24h High를 읽고, 저장된 고점보다 높으면 앵커를 올린다. 가격 판단은 kline high/close만. 탭 제목과 마크는 쓰지 않는다.
 
-With no position and a higher top: Cancel All, confirm the dialog, verify open count is 0, then rebuild. With a position: never Cancel All. Cancel only this grid's open longs row by row.
+새 1박스 꼭대기가 대기 중인 꼭대기보다 0.02 이상 높으면, 미체결 매수 지정가 전부를 취소하고 같은 비중으로 다시 건다. 체결된 물량은 옮기지 않는다. 꼭대기가 같거나 더 낮으면 매수 주문은 건드리지 않는다. 현재가보다 0.05 이상 낮은 칸만 넣는다.
 
-## Break-even trims (any market)
+## 본전 청산
 
-Sells are reduce-only limit orders at the average of that moment. Denominator is the holding at that moment. One per round, earliest rounds first. Never pre-place. No position means no sell.
+매도는 reduce-only 지정가. 가격은 그 시점 평단. 분모는 그 시점 보유 수량. 회차당 하나, 이른 단계부터. 미리 걸어 두지 않는다.
 
-1. After boxes 1 and 2 fill and price is at or above the average, sell 50% once.
-2. After that 50% and box 3 fills and price is at or above the new average, sell 35% of the holding once.
-3. After that 35% and box 4 fills and price is at or above the new average, sell 15% of the holding once.
-4. Then stop. No further sells even if boxes 5 and 6 fill.
+1. 1박스와 2박스가 체결된 뒤 현재가가 평단 이상이면, 보유의 50%를 한 번 판다.
+2. 그 50%가 끝난 뒤 3박스까지 체결되고 현재가가 새 평단 이상이면, 그 시점 보유의 35%를 한 번 판다.
+3. 그 35%가 끝난 뒤 4박스까지 체결되고 현재가가 새 평단 이상이면, 그 시점 보유의 15%를 한 번 판다.
+4. 그 다음부터는 청산하지 않는다. 5박스·6박스가 체결돼도 추가 매도는 없다.
 
-Never sell on box 1 alone. All three at holding basis leaves about 27.6% of the pre-first-trim quantity.
+1박스만 체결된 상태에서는 팔지 않는다. 포지션이 없으면 매도 주문을 넣지 않는다.
 
-## Orders and log
+세 번 다 그 시점 보유 기준이면, 첫 청산 직전 수량 대비 마지막에 약 27.6%가 남는다(50% 남긴 뒤 그 잔량의 35%, 다시 그 잔량의 15%).
 
-Exchange specifics (BingX preset): tab `https://bingx.com/en/tradfi/perpetual/SOXL-USDT`, kline symbol per market (SOXL: `NCSKSOXL2USD-USDT`, descending object `data[0]` latest, retry once on code 100410), inputs price then amount, USDT amount is qty * price to 2 decimals, Open Long, no confirm dialog, success is open count +1. Closes are Close tab, Limit, by-coin, Close Long, must be Reduce Only.
+## 주문
 
-Log one line per round plus the header together. If the header guard fails, report instead of overwriting. On rebuilds or trims record old top, new top, tops, current price, filled boxes, and trim ratio.
+- 탭은 `https://bingx.com/en/tradfi/perpetual/SOXL-USDT`. URL로 찾는다. attach가 `Page.enable` 타임아웃이면 `openTab`. 사용자가 보는 탭은 닫지 않는다.
+- 심볼 `NCSKSOXL2USD-USDT`. kline `data`는 내림차순 객체, `data[0]`이 최신. 배열이 아니거나 code 100410이면 1.5초 뒤 한 번 재시도.
+- 포지션이 없고 꼭대기가 올라갔으면 Cancel All → `Proceed to cancel all orders?`의 OK → Open Orders (0) 확인 후에만 다시 건다.
+- 포지션이 있으면 Cancel All을 쓰지 않는다. 이 사다리의 미체결 Open Long만 행의 Cancel로 지운다.
+- 입력은 `input.tl-input-inner` nth(0)=가격, nth(1)=금액. USDT 금액이면 수량×가격을 소수 2자리. Open Long. 확인창은 없다. Open Orders가 1 늘어야 성공이다.
+- 청산 지정가는 Close 탭, Limit, By amount - SOXL, Close Long. Reduce Only여야 한다.
+- 청산이 5박스보다 위에 있어도 칸을 빼거나 레버리지를 낮추지 않는다. 숫자만 보고한다.
 
-## Appendix: SOXL preset (example, not the rule)
+## 기록
 
-- N=6, G=7%, S=0.5% x 4 rungs, W=1:2:3:4, L=isolated 7x
-- anchor low=41.37 fixed, fib=0.786 (0.618 retired 2026-11-12), high ratchets up only
-- state file `memory/routines/soxl-fib-grid/STATE.md`, watcher `routines/Xpr2GmIoOxgkWlVb`
-- This section is an example. Rules above win on any conflict.
+회차마다 상태 파일 헤더와 실행 기록 한 줄을 같이 고친다. 헤더가 `> 20`으로 시작하지 않으면 덮어쓰지 말고 불일치를 보고한다. 변동이 없으면 한 줄. 주문을 옮겼거나 청산했으면 이전 꼭대기, 새 꼭대기, 6박스 가격, 현재가, 체결 박스, 실행한 청산 비율을 표로 남긴다.
