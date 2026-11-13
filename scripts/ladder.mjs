@@ -1,45 +1,72 @@
-const high = Number(process.argv[2]);
-const low = Number(process.argv[3] ?? 41.37);
-const boxQty = Number(process.argv[4] ?? 42.6753);
-const ratio = Number(process.argv[5] ?? 0.66);
-if (!Number.isFinite(high) || !Number.isFinite(low) || high <= low) {
-  console.error('usage: node ladder.mjs <high> [low=41.37] [boxQty=42.6753] [ratio=0.66]');
-  process.exit(1);
-}
+ // box-pyramid ladder - generic isolated limit-grid engine.
+ // SOXL values are one example config (see configs/soxl.json), not hardcoded for one bot.
+ // Pure node, no model-specific calls: works from any agent host or a cron watcher.
+ const fs = await import("node:fs");
+ function parseArgs(argv) {
+   const out = {};
+   for (let i = 2; i < argv.length; i++) {
+     const a = argv[i];
+     if (a.startsWith("--")) {
+       const eq = a.indexOf("=");
+       if (eq > -1) out[a.slice(2, eq)] = a.slice(eq + 1);
+       else { out[a.slice(2)] = argv[i + 1]; i++; }
+     } else if (out._pos === undefined) out._pos = [a];
+     else out._pos.push(a);
+   }
+   return out;
+ }
+ let cfg = {};
+ const args = parseArgs(process.argv);
+ if (args.config) {
+   cfg = JSON.parse(fs.readFileSync(args.config, "utf8"));
+ }
+ const pick = (k, fb) => (args[k] !== undefined ? args[k] : (cfg[k] !== undefined ? String(cfg[k]) : fb));
+ if (args._pos && args._pos.length && args.high === undefined) {
+   const pPos = args._pos;
+   if (pPos[0] !== undefined) args.high = pPos[0];
+   if (pPos[1] !== undefined) args.low = pPos[1];
+   if (pPos[2] !== undefined) args.boxQty = pPos[2];
+ }
+ const symbol = pick("symbol", cfg.symbol || "SOXL");
+ const exchange = pick("exchange", cfg.exchange || "bingx");
+ const high = Number(pick("high", undefined));
+ const low = Number(pick("low", cfg.low !== undefined ? cfg.low : 41.37));
+ const fib = Number(pick("fib", cfg.fib !== undefined ? cfg.fib : 0.786));
+ const boxes = Number(pick("boxes", cfg.boxes !== undefined ? cfg.boxes : 6));
+ const gap = Number(pick("gap", cfg.gap !== undefined ? cfg.gap : 0.07));
+ const boxQty = Number(pick("boxQty", cfg.boxQty !== undefined ? cfg.boxQty : 42.6753));
+ const leverage = Number(pick("leverage", cfg.leverage !== undefined ? cfg.leverage : 7));
+ const stepsRaw = pick("steps", cfg.steps || "0,0.5,1,1.5");
+ const weightsRaw = pick("weights", cfg.weights || "1:2:3:4");
+ if (!Number.isFinite(high) || !Number.isFinite(low) || high <= low) {
+   console.error("usage: node ladder.mjs --symbol SOXL --exchange bingx --high <high> --low <low> [--fib 0.786] [--boxes 6] [--gap 0.07] [--steps 0,0.5,1,1.5] [--weights 1:2:3:4] [--boxQty 42.6753] [--leverage 7] [--config configs/soxl.json]");
+   console.error("   legacy: node ladder.mjs <high> [low=41.37] [boxQty=42.6753]");
+   process.exit(1);
+ }
+ const stepsPct = String(stepsRaw).split(",").map(Number);
+ const weightParts = String(weightsRaw).split(":").map(Number);
+ if (stepsPct.some((v) => !Number.isFinite(v)) || weightParts.some((v) => !Number.isFinite(v) || v <= 0) || stepsPct.length !== weightParts.length) {
+   console.error("steps and weights must have the same length, e.g. --steps 0,0.5,1,1.5 --weights 1:2:3:4");
+   process.exit(1);
+ }
+ const wSum = weightParts.reduce((a, b) => a + b, 0);
+ const weights = weightParts.map((w) => w / wSum);
+ const steps = stepsPct.map((p) => p / 100);
+ const round2 = (n) => Math.round(n * 100) / 100;
+ const round4 = (n) => Math.round(n * 10000) / 10000;
+ const top0 = round2(high - fib * (high - low));
+ const tops = [top0];
+ for (let i = 1; i < boxes; i++) tops.push(round2(tops[i - 1] * (1 - gap)));
+ const slices = weights.slice(0, -1).map((w) => Math.floor(boxQty * w * 10000) / 10000);
+ slices.push(round4(boxQty - slices.reduce((a, b) => a + b, 0)));
+ const boxesOut = tops.map((top, box) => ({
+   box: box + 1,
+   top,
+   orders: steps.map((step, k) => {
+     const price = round2(top * (1 - step));
+     const qty = slices[k];
+     return { k, dropPct: round4(step * 100), weightPct: round4(weights[k] * 100), price, qty, value: round2(qty * price) };
+   })
+ }));
+ console.log(JSON.stringify({ symbol, exchange, high, low, fib, boxCount: boxes, gapPct: round4(gap * 100), innerStepsPct: stepsPct, weightsPct: weightParts, boxQty, leverage, slices, boxes: boxesOut }, null, 2));
 
-const round2 = (n) => Math.round(n * 100) / 100;
-const round4 = (n) => Math.round(n * 10000) / 10000;
-const weights = [0.1, 0.2, 0.3, 0.4];
-const steps = [0, 0.005, 0.01, 0.015];
-const top0 = round2(high - ratio * (high - low));
-const tops = [top0];
-for (let i = 1; i < 6; i++) tops.push(round2(tops[i - 1] * 0.93));
-
-const slices = [0.1, 0.2, 0.3].map((w) => Math.floor(boxQty * w * 10000) / 10000);
-slices.push(round4(boxQty - slices[0] - slices[1] - slices[2]));
-
-const boxes = tops.map((top, box) => ({
-  box: box + 1,
-  top,
-  orders: steps.map((step, k) => {
-    const price = round2(top * (1 - step));
-    const qty = slices[k];
-    return {
-      k,
-      dropPct: step * 100,
-      weightPct: weights[k] * 100,
-      price,
-      qty,
-      value: round2(qty * price)
-    };
-  })
-}));
-
-console.log(JSON.stringify({
-  high, low, boxQty, ratio,
-  weightsPct: [10, 20, 30, 40],
-  boxGapPct: 7,
-  innerStepPct: 0.5,
-  slices,
-  boxes
-}, null, 2));
