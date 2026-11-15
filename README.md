@@ -2,10 +2,10 @@
 
 Generic isolated limit-grid engine. No symbol is hardcoded. SOXL on BingX is one example preset, not the engine itself.
 
-- N boxes, equal coin quantity per box (`total / N`)
-- Box-top spacing G (e.g. 7%): `top[i+1] = top[i] * (1 - G)`
-- K limit rungs inside each box, stepped S apart (e.g. 4 rungs at 0, 0.5, 1.0, 1.5%)
-- Size weights inside a box, top to bottom (e.g. 10 / 20 / 30 / 40)
+- N boxes, equal coin quantity per box (`total / N`). 5 boxes = 20% each, all filled = 100%
+- Box-top spacing G (e.g. 5.5%): `top[i+1] = top[i] * (1 - G)`
+- K limit rungs inside each box, stepped S apart (e.g. 4 rungs at 0, 0.34, 0.68, 1.02%)
+- Size weights inside a box, top to bottom (e.g. 10 / 20 / 30 / 40 = 2 / 4 / 6 / 8% of total on 5 boxes)
 - Box-1 top from an anchor: `round(high - fib * (high - low), 2)`. High ratchets up only
 - Unfilled buys are rebuilt when a new high lifts box-1 top by the gate (e.g. 0.02)
 - After boxes 2, 3, and 4 fill, one reduce-only sell each at the average: 50%, then 35%, then 15% of the holding at that moment. No further trims
@@ -13,14 +13,14 @@ Generic isolated limit-grid engine. No symbol is hardcoded. SOXL on BingX is one
 ## Quickstart
 
 ```sh
-node scripts/ladder.mjs --symbol SOXL --exchange bingx --high 69.78 --low 41.37 --fib 0.786 --boxes 6 --gap 0.07 --steps 0,0.5,1,1.5 --weights 1:2:3:4 --boxQty 42.6753 --leverage 7
+node scripts/ladder.mjs --symbol SOXL --exchange bingx --high 69.78 --low 41.37 --fib 0.66 --boxes 5 --gap 0.055 --steps 0,0.34,0.68,1.02 --weights 1:2:3:4 --boxQty 51.2104 --leverage 7
 node scripts/ladder.mjs --config configs/soxl.json --high 69.78
-node scripts/ladder.mjs 69.78 41.37 42.6753
+node scripts/ladder.mjs 69.78 41.37 51.2104
 ```
 
 ## Configs
 
-- `configs/soxl.json`: SOXL example preset on BingX (fib 0.786, 6 boxes, 7% gap, 4 rungs, 1:2:3:4, isolated 7x)
+- `configs/soxl.json`: SOXL example preset on BingX (fib 0.66, 5 boxes, 5.5% gap, 4 rungs at 0.34%, 1:2:3:4, isolated 7x)
 - Add `configs/<symbol>.json` for each new market. Keep live highs and order state out of git
 
 ## Scripts
