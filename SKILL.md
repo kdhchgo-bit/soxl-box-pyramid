@@ -1,6 +1,6 @@
 ---
 name: "soxl-box-pyramid"
-description: "Isolated box-pyramid limit grid engine. N boxes, G spacing, S-step rungs, W weights, anchor high/low/fib, one reduce-only trim per round. SOXL 6-box preset included as example. Use for any grid, high tracking, or break-even trim."
+description: "Isolated box-pyramid limit grid engine. N boxes, G spacing, S-step rungs, W weights, anchor high/low/fib, one reduce-only trim per round. SOXL 5-box preset included as example. Use for any grid, high tracking, or break-even trim."
 ---
 
 # Box pyramid (generic)
@@ -10,10 +10,10 @@ Prices are never hand-computed. Use `scripts/ladder.mjs` only.
 ## Parameters
 
 - `symbol`, `exchange` (e.g. SOXL, bingx)
-- `boxes N`: box count. Each box holds `total / N` coins
+- `boxes N`: box count. Each box holds `total / N` coins. 5 boxes = 20% each, all filled = 100%
 - `gap G`: box-top spacing. `top[i+1] = top[i] * (1 - G)`
-- `steps S`: rung drops inside a box (e.g. 0, 0.5, 1, 1.5%)
-- `weights W`: rung sizes top to bottom (e.g. 1:2:3:4). Never fill the whole G band with S steps
+- `steps S`: rung drops inside a box (e.g. 0, 0.34, 0.68, 1.02%)
+- `weights W`: rung sizes top to bottom (e.g. 1:2:3:4 = 10/20/30/40% of box = 2/4/6/8% of total on 5 boxes). Never fill the whole G band with S steps
 - `anchor`: `box1top = round(high - fib * (high - low), 2)`. `low` fixed, `high` ratchets up only
 - `boxQty`: coins per box. Splits Max Long while unfilled only
 - `leverage L`: isolated, never lowered to buy room
@@ -21,7 +21,7 @@ Prices are never hand-computed. Use `scripts/ladder.mjs` only.
 
 ```sh
 node scripts/ladder.mjs --config configs/soxl.json --high <high>
-node scripts/ladder.mjs --symbol TQQQ --exchange bingx --high 85.2 --low 52.1 --fib 0.618 --boxes 5 --gap 0.07 --steps 0,0.5,1,1.5 --weights 1:2:3:4 --boxQty 30 --leverage 5
+node scripts/ladder.mjs --symbol TQQQ --exchange bingx --high 85.2 --low 52.1 --fib 0.618 --boxes 5 --gap 0.055 --steps 0,0.34,0.68,1.02 --weights 1:2:3:4 --boxQty 30 --leverage 5
 ```
 
 ## Tracking (any market)
@@ -39,7 +39,7 @@ Sells are reduce-only limit orders at the average of that moment. Denominator is
 1. After boxes 1 and 2 fill and price is at or above the average, sell 50% once.
 2. After that 50% and box 3 fills and price is at or above the new average, sell 35% of the holding once.
 3. After that 35% and box 4 fills and price is at or above the new average, sell 15% of the holding once.
-4. Then stop. No further sells even if boxes 5 and 6 fill.
+4. Then stop. No further sells even if box 5 fills.
 
 Never sell on box 1 alone. All three at holding basis leaves about 27.6% of the pre-first-trim quantity.
 
@@ -51,7 +51,8 @@ Log one line per round plus the header together. If the header guard fails, repo
 
 ## Appendix: SOXL preset (example, not the rule)
 
-- N=6, G=7%, S=0.5% x 4 rungs, W=1:2:3:4, L=isolated 7x
+- N=5, G=5.5%, S=0.34% x 4 rungs (0 / 0.34 / 0.68 / 1.02%), W=1:2:3:4 (10/20/30/40% of box = 2/4/6/8% of total, 5 boxes = 100%), L=isolated 7x
 - anchor low=41.37 fixed, fib=0.66 (0.786 retired 2026-11-14 00:01, 0.618 retired 2026-11-12), high ratchets up only
+- boxQty 51.2104 per box (total 256.0518 kept from 6-box book), slices 5.121 / 10.242 / 15.3631 / 20.4843
 - state file `memory/routines/soxl-fib-grid/STATE.md`, watcher `routines/Xpr2GmIoOxgkWlVb`
 - This section is an example. Rules above win on any conflict.
