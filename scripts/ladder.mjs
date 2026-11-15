@@ -31,22 +31,22 @@
  const exchange = pick("exchange", cfg.exchange || "bingx");
  const high = Number(pick("high", undefined));
  const low = Number(pick("low", cfg.low !== undefined ? cfg.low : 41.37));
- const fib = Number(pick("fib", cfg.fib !== undefined ? cfg.fib : 0.786));
- const boxes = Number(pick("boxes", cfg.boxes !== undefined ? cfg.boxes : 6));
- const gap = Number(pick("gap", cfg.gap !== undefined ? cfg.gap : 0.07));
- const boxQty = Number(pick("boxQty", cfg.boxQty !== undefined ? cfg.boxQty : 42.6753));
+ const fib = Number(pick("fib", cfg.fib !== undefined ? cfg.fib : 0.66));
+ const boxes = Number(pick("boxes", cfg.boxes !== undefined ? cfg.boxes : 5));
+ const gap = Number(pick("gap", cfg.gap !== undefined ? cfg.gap : 0.055));
+ const boxQty = Number(pick("boxQty", cfg.boxQty !== undefined ? cfg.boxQty : 51.2104));
  const leverage = Number(pick("leverage", cfg.leverage !== undefined ? cfg.leverage : 7));
- const stepsRaw = pick("steps", cfg.steps || "0,0.5,1,1.5");
+ const stepsRaw = pick("steps", cfg.steps || "0,0.34,0.68,1.02");
  const weightsRaw = pick("weights", cfg.weights || "1:2:3:4");
  if (!Number.isFinite(high) || !Number.isFinite(low) || high <= low) {
-   console.error("usage: node ladder.mjs --symbol SOXL --exchange bingx --high <high> --low <low> [--fib 0.786] [--boxes 6] [--gap 0.07] [--steps 0,0.5,1,1.5] [--weights 1:2:3:4] [--boxQty 42.6753] [--leverage 7] [--config configs/soxl.json]");
-   console.error("   legacy: node ladder.mjs <high> [low=41.37] [boxQty=42.6753]");
+   console.error("usage: node ladder.mjs --symbol SOXL --exchange bingx --high <high> --low <low> [--fib 0.66] [--boxes 5] [--gap 0.055] [--steps 0,0.34,0.68,1.02] [--weights 1:2:3:4] [--boxQty 51.2104] [--leverage 7] [--config configs/soxl.json]");
+   console.error("   legacy: node ladder.mjs <high> [low=41.37] [boxQty=51.2104]");
    process.exit(1);
  }
  const stepsPct = String(stepsRaw).split(",").map(Number);
  const weightParts = String(weightsRaw).split(":").map(Number);
  if (stepsPct.some((v) => !Number.isFinite(v)) || weightParts.some((v) => !Number.isFinite(v) || v <= 0) || stepsPct.length !== weightParts.length) {
-   console.error("steps and weights must have the same length, e.g. --steps 0,0.5,1,1.5 --weights 1:2:3:4");
+   console.error("steps and weights must have the same length, e.g. --steps 0,0.34,0.68,1.02 --weights 1:2:3:4");
    process.exit(1);
  }
  const wSum = weightParts.reduce((a, b) => a + b, 0);
