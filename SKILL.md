@@ -1,58 +1,35 @@
 ---
 name: "soxl-box-pyramid"
-description: "Isolated box-pyramid limit grid engine. N boxes, G spacing, S-step rungs, W weights, anchor high/low/fib, one reduce-only trim per round. SOXL 5-box preset included as example. Use for any grid, high tracking, or break-even trim."
+description: "SOXL 격리 7배 4박스 피라미딩. 파동 분석 스윙 고점·저점으로 0.66 꼭대기를 잡고 4박스·박스안 10/20/30/40 피라미딩. 5분 추적·본전 50/35/15·비중별 Close 익절·RSI80 절반. 이 그리드를 걸거나 고점 추적·박스 비중을 다룰 때 사용."
 ---
 
-# Box pyramid (generic)
+# SOXL 4박스 피라미딩 (파동 연동)
 
-Prices are never hand-computed. Use `scripts/ladder.mjs` only.
+가격은 손으로 만들지 말고 `scripts/ladder.mjs`로 낸다. 앵커(고점·저점)는 `references/ANALYSIS.md` 파이프라인에서, 운용(5분·비중·익절)은 `references/PLAYBOOK.md`에서 가져온다. 상태 파일은 `C:\Users\USER\.aside\u\0\memory\routines\soxl-fib-grid\STATE.md`.
 
-## Parameters
+## 고정 비중
 
-- `symbol`, `exchange` (e.g. SOXL, bingx)
-- `boxes N`: box count. Each box holds `total / N` coins. 5 boxes = 20% each, all filled = 100%
-- `gap G`: box-top spacing. `top[i+1] = top[i] * (1 - G)`
-- `steps S`: rung drops inside a box (e.g. 0, 0.34, 0.68, 1.02%)
-- `weights W`: rung sizes top to bottom (e.g. 1:2:3:4 = 10/20/30/40% of box = 2/4/6/8% of total on 5 boxes). Never fill the whole G band with S steps
-- `anchor`: `box1top = round(high - fib * (high - low), 2)`. `low` fixed, `high` ratchets up only
-- `boxQty`: coins per box. Splits Max Long while unfilled only
-- `leverage L`: isolated, never lowered to buy room
-- `state`: per-symbol state file (e.g. one file per market), not one global path
+고점이 올라 가격만 다시 계산한다.
 
-```sh
-node scripts/ladder.mjs --config configs/soxl.json --high <high>
-node scripts/ladder.mjs --symbol TQQQ --exchange bingx --high 85.2 --low 52.1 --fib 0.618 --boxes 5 --gap 0.055 --steps 0,0.34,0.68,1.02 --weights 1:2:3:4 --boxQty 30 --leverage 5
-```
+- 박스 4개. 박스당 증거금은 나머지 시드(본포 제외, 본포 없으면 전체 지갑)의 1.5%. 4박스 합계 6%. 명목은 박스당 나머지×0.015×7, USDT 입력.
+- 박스 간격 5.5%. 다음 꼭대기 = 이전 꼭대기 × 0.945.
+- 박스 안 4단. 가격은 꼭대기에서 0%, −0.34%, −0.68%, −1.02%.
+- 박스 안 수량 비중은 위→아래 **10% / 20% / 30% / 40%** (1:2:3:4). 네 박스가 같다.
+- 1박스 꼭대기 = round(고점 − 0.66 × (고점 − 저점), 2). 고점·저점은 파동 분석 스윙값(롤링). 고정 41.37은 쓰지 않는다. 0.786은 쓰지 않는다.
+- 격리 7배. 레버리지를 낮추지 않는다. Max Long 부족한 칸은 건너뛰고 멈춤.
 
-## Tracking (any market)
+## 5분 고점 추적 + 파동 재확인
 
-Read the 1-minute high and the page 24h high. If above the stored high, ratchet the anchor up. Judge prices from kline high/close only, never the tab title or mark.
+5분마다 Yahoo 1wk/1d/60m/15m 수집 → 스윙 갱신 → 0.66 꼭대기 재계산. 판단은 kline high/close만.
 
-If the new box-1 top is at least 0.02 above the resting top, cancel all unfilled buys and rebuild with the same weights. Never move filled quantity. If equal or lower, touch nothing. Only place rungs at least 0.05 below the current price.
+새 1박스 꼭대기가 대기 꼭대기보다 0.02 이상 높으면, 미체결 매수 지정가 전부를 취소하고 같은 비중으로 다시 건다. 체결된 물량은 옮기지 않는다. 꼭대기가 같거나 낮으면 매수 주문은 건드리지 않는다. 5분에 1건씩만, 건간 3초 이상. 포지션이 있으면 Cancel All 금지, 행별 Cancel만.
 
-With no position and a higher top: Cancel All, confirm the dialog, verify open count is 0, then rebuild. With a position: never Cancel All. Cancel only this grid's open longs row by row.
+## 매도 (본전 트림 + 비중별 Close + RSI80)
 
-## Break-even trims (any market)
+- 본전 청산: reduce-only 지정가, 가격은 그 시점 평단, 분모는 그 시점 보유, 회차당 하나, 미리 걸지 않음. 1·2박스 체결 후 평단 이상이면 50% → 그 뒤 3박스 체결 후 새 평단 이상이면 35% → 그 뒤 4박스 체결 후면 15%. 이후 청산 없음.
+- 비중별 Close: 체결된 박스는 Close Long reduce-only로 각 비중별 +5%씩, 러너 1개 +8%. 주문폼 TP/SL은 포지션당 1개라 Overwrite 팝업 뜨면 Cancel(Proceed 금지). Position 0일 때만 폼 TP 가능.
+- 받다가 반등 세게 오면 1분봉 RSI 80에서 절반 정리, 나머지 러너. +5% TP와 먼저 닿는 쪽 인정.
 
-Sells are reduce-only limit orders at the average of that moment. Denominator is the holding at that moment. One per round, earliest rounds first. Never pre-place. No position means no sell.
+## 기록
 
-1. After boxes 1 and 2 fill and price is at or above the average, sell 50% once.
-2. After that 50% and box 3 fills and price is at or above the new average, sell 35% of the holding once.
-3. After that 35% and box 4 fills and price is at or above the new average, sell 15% of the holding once.
-4. Then stop. No further sells even if box 5 fills.
-
-Never sell on box 1 alone. All three at holding basis leaves about 27.6% of the pre-first-trim quantity.
-
-## Orders and log
-
-Exchange specifics (BingX preset): tab `https://bingx.com/en/tradfi/perpetual/SOXL-USDT`, kline symbol per market (SOXL: `NCSKSOXL2USD-USDT`, descending object `data[0]` latest, retry once on code 100410), inputs price then amount, USDT amount is qty * price to 2 decimals, Open Long, no confirm dialog, success is open count +1. Closes are Close tab, Limit, by-coin, Close Long, must be Reduce Only.
-
-Log one line per round plus the header together. If the header guard fails, report instead of overwriting. On rebuilds or trims record old top, new top, tops, current price, filled boxes, and trim ratio.
-
-## Appendix: SOXL preset (example, not the rule)
-
-- N=5, G=5.5%, S=0.34% x 4 rungs (0 / 0.34 / 0.68 / 1.02%), W=1:2:3:4 (10/20/30/40% of box = 2/4/6/8% of total, 5 boxes = 100%), L=isolated 7x
-- anchor low=41.37 fixed, fib=0.66 (0.786 retired 2026-11-14 00:01, 0.618 retired 2026-11-12), high ratchets up only
-- boxQty 51.2104 per box (total 256.0518 kept from 6-box book), slices 5.121 / 10.242 / 15.3631 / 20.4843
-- state file `memory/routines/soxl-fib-grid/STATE.md`, watcher `routines/Xpr2GmIoOxgkWlVb`
-- This section is an example. Rules above win on any conflict.
+회차마다 상태 파일 헤더와 실행 기록 한 줄을 같이 고친다. 헤더가 `> 20`으로 시작하지 않으면 덮어쓰지 말고 불일치를 보고한다.
