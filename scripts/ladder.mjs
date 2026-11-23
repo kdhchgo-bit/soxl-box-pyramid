@@ -30,17 +30,17 @@
  const symbol = pick("symbol", cfg.symbol || "SOXL");
  const exchange = pick("exchange", cfg.exchange || "bingx");
  const high = Number(pick("high", undefined));
- const low = Number(pick("low", cfg.low !== undefined ? cfg.low : 41.37));
+ const low = Number(pick("low", cfg.low !== undefined ? cfg.low : NaN));
  const fib = Number(pick("fib", cfg.fib !== undefined ? cfg.fib : 0.66));
- const boxes = Number(pick("boxes", cfg.boxes !== undefined ? cfg.boxes : 5));
+ const boxes = Number(pick("boxes", cfg.boxes !== undefined ? cfg.boxes : 4));
  const gap = Number(pick("gap", cfg.gap !== undefined ? cfg.gap : 0.055));
  const boxQty = Number(pick("boxQty", cfg.boxQty !== undefined ? cfg.boxQty : 51.2104));
  const leverage = Number(pick("leverage", cfg.leverage !== undefined ? cfg.leverage : 7));
  const stepsRaw = pick("steps", cfg.steps || "0,0.34,0.68,1.02");
  const weightsRaw = pick("weights", cfg.weights || "1:2:3:4");
  if (!Number.isFinite(high) || !Number.isFinite(low) || high <= low) {
-   console.error("usage: node ladder.mjs --symbol SOXL --exchange bingx --high <high> --low <low> [--fib 0.66] [--boxes 5] [--gap 0.055] [--steps 0,0.34,0.68,1.02] [--weights 1:2:3:4] [--boxQty 51.2104] [--leverage 7] [--config configs/soxl.json]");
-   console.error("   legacy: node ladder.mjs <high> [low=41.37] [boxQty=51.2104]");
+   console.error("usage: node ladder.mjs --symbol SOXL --exchange bingx --high <high> --low <low> [--fib 0.66] [--boxes 4] [--gap 0.055] [--steps 0,0.34,0.68,1.02] [--weights 1:2:3:4] [--boxQty 51.2104] [--leverage 7] [--config configs/soxl.json]");
+   console.error("   legacy: node ladder.mjs <high> <low> [boxQty]");
    process.exit(1);
  }
  const stepsPct = String(stepsRaw).split(",").map(Number);
