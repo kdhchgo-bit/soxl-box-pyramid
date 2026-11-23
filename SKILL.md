@@ -5,7 +5,7 @@ description: "SOXL 격리 7배 4박스 피라미딩. 파동 분석 스윙 고점
 
 # SOXL 4박스 피라미딩 (파동 연동)
 
-가격은 손으로 만들지 말고 `scripts/ladder.mjs`로 낸다. 앵커(고점·저점)는 `references/ANALYSIS.md` 파이프라인에서, 운용(5분·비중·익절)은 `references/PLAYBOOK.md`에서 가져온다. 상태 파일은 `C:\Users\USER\.aside\u\0\memory\routines\soxl-fib-grid\STATE.md`.
+가격은 손으로 만들지 말고 `scripts/ladder.mjs`로 낸다. 앵커(고점·저점)는 `ANALYSIS.md` 파이프라인에서, 운용(5분·비중·익절)은 `PLAYBOOK.md`에서 가져온다. (GitHub 루트 기준. 로컬 미러는 `references/`에 동일본 보관) 상태 파일은 `C:\Users\USER\.aside\u\0\memory\routines\soxl-fib-grid\STATE.md`.
 
 ## 고정 비중
 
